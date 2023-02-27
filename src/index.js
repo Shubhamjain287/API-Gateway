@@ -1,30 +1,35 @@
 const express = require("express");
 const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
 
 const { createProxyMiddleware } = require("http-proxy-middleware");
-const { PORT } = require("./config/serverCongif");
+const { PORT, BOOKING_SERVICE, AUTH_SERVICE, SEARCH_SERVICE, REMINDER_SERVICE } = require("./config/serverCongif");
+const isAuthenticated = require("./middleware/isAuthenticated");
+const rateLimiter = require("./middleware/rateLimit");
+
 
 const server = () => {
 
     const app = express();
 
     app.use(morgan('combined'));
+    app.use(rateLimiter);
+    app.use("/bookingservice",isAuthenticated);
 
-    const limiter = rateLimit({
-        windowMs: 2 * 60 * 1000,
-        max: 5
-    });
+    app.use("/searchservice", createProxyMiddleware({target: SEARCH_SERVICE, changeOrigin: true}));
+    app.use("/authservice", createProxyMiddleware({target: AUTH_SERVICE , changeOrigin: true}));
+    app.use("/bookingservice", createProxyMiddleware({target: BOOKING_SERVICE, changeOrigin: true}));
+    app.use("/reminderservice", createProxyMiddleware({target: REMINDER_SERVICE, changeOrigin: true}));
 
-    app.use(limiter);
-
-    app.use("/bookingservice", createProxyMiddleware({target: "http://localhost:2805", changeOrigin: true}));
-
-    app.get('/api-gateway' , (req,res) => {
+    app.get('/home' , (req,res) => {
         return res.json({
-            message: `API Gateway Working Successfully`
+            message: `API Gateway Working Successfully`,
+            statusCode: 200,
+            data: {
+                authorName: "Shubham Jain",
+                githubURL: `https://github.com/Shubhamjain287`
+            }
         })
-    })
+    });
 
     app.listen(PORT, () => {
         console.log(`Server os Running on PORT: ${PORT}`);
